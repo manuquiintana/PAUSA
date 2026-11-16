@@ -8,6 +8,8 @@ interface NavItem { to: string; label: string; icon: ReactNode }
 
 const icons = {
   home: <path d="M4 11.5 12 5l8 6.5V20a1 1 0 0 1-1 1h-4.5v-5.5h-5V21H5a1 1 0 0 1-1-1z" />,
+  pause: <path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm0-5a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" />,
+  settings: <path d="M4 7h10M18 7h2M4 17h4M12 17h8M14 4v6M8 14v6" />,
   history: <path d="M4 12a8 8 0 1 0 2.3-5.6M4 4v4h4M12 8v4.5l3 2" />,
   team: <path d="M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Zm-6 9c0-3 2.7-5 6-5s6 2 6 5M16 4.5a3.5 3.5 0 0 1 0 6.5M18 15c2 .6 3 2.3 3 5" />,
   company: <path d="M4 21V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v16M15 9h4a1 1 0 0 1 1 1v11M3 21h18M8 8h3M8 12h3M8 16h3" />,
@@ -22,6 +24,7 @@ export function Layout({ children }: { children: ReactNode }) {
 
   const items: NavItem[] = [
     { to: '/', label: 'Inicio', icon: <Icon d={icons.home} /> },
+    { to: '/pausas', label: 'Pausas', icon: <Icon d={icons.pause} /> },
     { to: '/historico', label: 'Mi histórico', icon: <Icon d={icons.history} /> },
   ]
   if (me.role === 'manager' || me.role === 'admin') items.push({ to: '/equipo', label: 'Equipos', icon: <Icon d={icons.team} /> })
@@ -46,7 +49,7 @@ export function Layout({ children }: { children: ReactNode }) {
           <Logo />
           <nav aria-label="Principal" className="ml-6 hidden gap-1 md:flex">
             {items.map((i) => (
-              <NavLink key={i.to} to={i.to} end className={linkCls}>{i.icon}{i.label}</NavLink>
+              <NavLink key={i.to} to={i.to} end={i.to === '/'} className={linkCls}>{i.icon}{i.label}</NavLink>
             ))}
           </nav>
           <div className="ml-auto flex items-center gap-3">
@@ -54,6 +57,9 @@ export function Layout({ children }: { children: ReactNode }) {
               <p className="text-sm font-medium leading-tight">{me.fullName}</p>
               <p className="text-xs text-neutro-oscuro">{ROLE_LABEL[me.role]} · {me.company.name}</p>
             </div>
+            <NavLink to="/preferencias" className="btn-ghost px-3 text-sm" aria-label="Mis preferencias" title="Mis preferencias">
+              <Icon d={icons.settings} /><span className="hidden lg:inline">Preferencias</span>
+            </NavLink>
             <button type="button" className="btn-ghost text-sm" onClick={signOut}>Salir</button>
           </div>
         </div>
@@ -63,7 +69,7 @@ export function Layout({ children }: { children: ReactNode }) {
 
       <nav aria-label="Principal" className="fixed inset-x-0 bottom-0 z-20 flex border-t border-[#E9E3D8] bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
         {items.map((i) => (
-          <NavLink key={i.to} to={i.to} end className={mobileCls}>{i.icon}{i.label}</NavLink>
+          <NavLink key={i.to} to={i.to} end={i.to === '/'} className={mobileCls}>{i.icon}{i.label}</NavLink>
         ))}
       </nav>
     </div>

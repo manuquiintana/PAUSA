@@ -35,6 +35,45 @@ export interface Wellbeing {
   pausesCompleted: number | null
 }
 
+export type Need = 'cuello_espalda' | 'desconectar' | 'concentracion' | 'energia' | 'calma'
+export type ModuleId = 'stretch' | 'breathe' | 'mindfulness' | 'positive' | 'reset'
+
+/** Preferencias del onboarding. Privadas: solo las lee su propietario (RLS). */
+export interface Preferences {
+  needs: Need[]
+  pausesPerDay: 1 | 2 | 3
+  canStand: boolean
+  workStart: string // "HH:MM"
+  workEnd: string
+  onboardedAt: string | null
+}
+
+export interface ActivityStep {
+  text: string
+  seconds: number
+  /** still · move · pulse · eyes · breath:4-6 · breath:4-4-4-4 */
+  animation: string
+}
+
+export interface Activity {
+  id: string
+  module: ModuleId
+  title: string
+  summary: string
+  durationMin: number
+  requiresStanding: boolean
+  needs: Need[]
+  reviewStatus: string
+  steps: ActivityStep[]
+}
+
+export interface PauseSession {
+  id: string
+  activityId: string
+  startedAt: string // ISO
+  completedAt: string | null
+}
+
 export interface DemoPersona {
   userId: string
   email: string
@@ -54,6 +93,13 @@ export interface DataBackend {
   teamWellbeing(teamId: string, period: Period, offset: number): Promise<Wellbeing>
   companyWellbeing(period: Period, offset: number): Promise<Wellbeing>
   updatePauseWindow(start: string, end: string): Promise<void>
+  getPreferences(): Promise<Preferences | null>
+  savePreferences(p: Omit<Preferences, 'onboardedAt'>): Promise<void>
+  listActivities(): Promise<Activity[]>
+  /** Pausas propias desde `sinceDays` días atrás. */
+  listMySessions(sinceDays: number): Promise<PauseSession[]>
+  startSession(activityId: string): Promise<string>
+  completeSession(sessionId: string): Promise<void>
   /** Solo en modo demo: entrar directamente como un usuario de ejemplo. */
   demoPersonas?: DemoPersona[]
   signInAsDemo?(userId: string): Promise<void>

@@ -7,14 +7,19 @@
 import type { PGlite } from '@electric-sql/pglite'
 import { asUser, createDemoDb } from '../demo/setup'
 import { toWellbeing } from '../format'
+import { byModule, fromPreferences, toActivity, toPreferences, toSession } from '../mappers'
 import type { DataBackend, DemoPersona, Me, Period, TeamSummary } from '../types'
 import authStub from '../../../supabase/pglite/auth_stub.sql?raw'
 import demoUsers from '../../../supabase/pglite/demo_users.sql?raw'
-import demoData from '../../../supabase/seed/02_demo_data.sql?raw'
 
 const migrationFiles = import.meta.glob('../../../supabase/migrations/*.sql', {
   query: '?raw', import: 'default', eager: true,
 }) as Record<string, string>
+// Todos los datos de ejemplo salvo 01_auth_users.sql (que es solo para Supabase)
+const seedFiles = import.meta.glob(['../../../supabase/seed/*.sql', '!../../../supabase/seed/01_auth_users.sql'], {
+  query: '?raw', import: 'default', eager: true,
+}) as Record<string, string>
+const sorted = (files: Record<string, string>) => Object.keys(files).sort().map((k) => files[k])
 
 export const DEMO_PASSWORD = 'PausaDemo2026!'
 
@@ -60,9 +65,9 @@ export function createDemoBackend(): DataBackend {
       createDemoDb(
         {
           authStub,
-          migrations: Object.keys(migrationFiles).sort().map((k) => migrationFiles[k]),
+          migrations: sorted(migrationFiles),
           demoUsers,
-          demoData,
+          demoData: sorted(seedFiles),
         },
         await loadFsBundle(),
       ))())
@@ -135,6 +140,50 @@ export function createDemoBackend(): DataBackend {
     async companyWellbeing(period: Period, offset: number) {
       const [r] = await q('select * from company_wellbeing($1, $2)', [period, offset])
       return toWellbeing(r)
+    },
+
+    async getPreferences() {
+      const [r] = await q('select * from preferences where user_id = auth.uid()')
+      return r ? toPreferences(r) : null
+    },
+
+    async savePreferences(p) {
+      const v = fromPreferences(userId!, p)
+      await q(
+        `insert into preferences (user_id, needs, pauses_per_day, can_stand, work_start, work_end, onboarded_at, updated_at)
+         values (auth.uid(), $1, $2, $3, $4::time, $5::time, now(), now())
+         on conflict (user_id) do update set needs = excluded.needs, pauses_per_day = excluded.pauses_per_day,
+           can_stand = excluded.can_stand, work_start = excluded.work_start, work_end = excluded.work_end,
+           onboarded_at = coalesce(preferences.onboarded_at, now()), updated_at = now()`,
+        [v.needs, v.pauses_per_day, v.can_stand, v.work_start, v.work_end],
+      )
+    },
+
+    async listActivities() {
+      const acts = await q('select * from activities')
+      const steps = await q('select * from activity_steps')
+      return acts.map((a) => toActivity(a, steps.filter((s) => s.activity_id === a.id))).sort(byModule)
+    },
+
+    async listMySessions(sinceDays) {
+      const rows = await q(
+        `select id, activity_id, started_at, completed_at from pause_sessions
+          where user_id = auth.uid() and started_at >= now() - make_interval(days => $1) order by started_at`,
+        [sinceDays],
+      )
+      return rows.map(toSession)
+    },
+
+    async startSession(activityId) {
+      const [r] = await q<{ id: string }>(
+        'insert into pause_sessions (user_id, activity_id) values (auth.uid(), $1) returning id',
+        [activityId],
+      )
+      return r.id
+    },
+
+    async completeSession(sessionId) {
+      await q('update pause_sessions set completed_at = now() where id = $1', [sessionId])
     },
 
     async updatePauseWindow(start, end) {

@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom'
+import { NextPauseCard } from '../components/NextPauseCard'
 import { Card, Proximamente } from '../components/ui'
 import { useApp } from '../lib/app-context'
 import { firstName, greeting } from '../lib/format'
@@ -13,7 +15,7 @@ export default function HomePage() {
         <h1 className="mt-1 text-3xl font-semibold md:text-4xl">{greeting()}, {firstName(me.fullName)}</h1>
       </header>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid items-start gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -31,26 +33,17 @@ export default function HomePage() {
           </div>
         </Card>
 
-        <Card className="flex flex-col">
-          <div className="flex items-start justify-between gap-4">
-            <h2 className="text-xl font-semibold">Tu próxima pausa</h2>
-            <Proximamente label="Fase 2" />
-          </div>
-          <div className="flex flex-1 items-center justify-center py-6">
-            <span className="animate-breathe block h-28 w-28 rounded-full bg-salvia/25 ring-[14px] ring-salvia/10" aria-hidden="true" />
-          </div>
-          <p className="text-sm text-neutro-oscuro">Te sugeriremos una pausa según tus preferencias, sin repetir la de ayer.</p>
-        </Card>
+        <NextPauseCard />
       </div>
 
       <section aria-labelledby="modulos">
         <div className="mb-3 flex items-baseline justify-between">
           <h2 id="modulos" className="text-2xl font-semibold">Tipos de pausa</h2>
-          <span className="text-sm text-neutro-oscuro">Reproductor en fase 2</span>
+          <Link to="/pausas" className="text-sm font-medium text-salvia-oscuro underline-offset-4 hover:underline">Ver todas</Link>
         </div>
         <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5">
           {MODULES.map((m) => (
-            <article key={m.id} className="card overflow-hidden">
+            <Link to="/pausas" key={m.id} className="card overflow-hidden transition hover:border-salvia">
               <div className="flex h-16 items-center justify-center sm:h-20" style={{ background: m.bg }}>
                 <span className="h-10 w-10 rounded-full" style={{ background: m.color }} aria-hidden="true" />
               </div>
@@ -59,7 +52,7 @@ export default function HomePage() {
                 <p className="mt-0.5 text-xs font-medium" style={{ color: m.color === '#E58F6E' ? '#A8573A' : '#4F7562' }}>{m.minutes}</p>
                 <p className="mt-2 text-sm text-neutro-oscuro">{m.description}</p>
               </div>
-            </article>
+            </Link>
           ))}
         </div>
       </section>

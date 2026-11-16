@@ -5,7 +5,8 @@ export interface DemoSql {
   authStub: string
   migrations: string[]
   demoUsers: string
-  demoData: string
+  /** Archivos de supabase/seed/ salvo 01_auth_users.sql (solo Supabase), en orden. */
+  demoData: string[]
 }
 
 export async function createDemoDb(sql: DemoSql, fsBundle?: Blob): Promise<PGlite> {
@@ -13,7 +14,7 @@ export async function createDemoDb(sql: DemoSql, fsBundle?: Blob): Promise<PGlit
   await pg.exec(sql.authStub)
   for (const m of sql.migrations) await pg.exec(m)
   await pg.exec(sql.demoUsers)
-  await pg.exec(sql.demoData)
+  for (const d of sql.demoData) await pg.exec(d)
   return pg
 }
 

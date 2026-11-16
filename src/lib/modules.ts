@@ -1,4 +1,6 @@
-export type ModuleId = 'stretch' | 'breathe' | 'mindfulness' | 'positive' | 'reset'
+import type { ModuleId, Need } from './types'
+
+export type { ModuleId }
 
 export interface ModuleInfo {
   id: ModuleId
@@ -21,3 +23,13 @@ export const MODULES: ModuleInfo[] = [
   { id: 'reset', name: 'Reset Break', minutes: '5-10 min', color: '#C9A86A', bg: '#F4ECDC',
     description: 'Descanso visual 20-20-20, microdescansos y desconexión de pantallas.' },
 ]
+
+export const MODULE_BY_ID = Object.fromEntries(MODULES.map((m) => [m.id, m])) as Record<ModuleId, ModuleInfo>
+
+export const NEED_LABEL: Record<Need, string> = {
+  cuello_espalda: 'Cuello y espalda',
+  desconectar: 'Desconectar',
+  concentracion: 'Concentración',
+  energia: 'Energía',
+  calma: 'Calma',
+}

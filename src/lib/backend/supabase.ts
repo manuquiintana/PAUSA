@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { toWellbeing } from '../format'
+import { byModule, fromPreferences, toActivity, toPreferences, toSession } from '../mappers'
 import type { DataBackend, Me, Period, TeamSummary } from '../types'
 
 export function createSupabaseBackend(url: string, anonKey: string): DataBackend {
@@ -71,6 +72,53 @@ export function createSupabaseBackend(url: string, anonKey: string): DataBackend
       const { data, error } = await sb.rpc('company_wellbeing', { p_period: period, p_offset: offset })
       fail(error)
       return toWellbeing((data as Record<string, unknown>[])[0])
+    },
+
+    async getPreferences() {
+      const { data, error } = await sb.from('preferences').select('*').eq('user_id', await uid()).maybeSingle()
+      fail(error)
+      return data ? toPreferences(data) : null
+    },
+
+    async savePreferences(p) {
+      const id = await uid()
+      const { error } = await sb
+        .from('preferences')
+        .upsert({ ...fromPreferences(id!, p), onboarded_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+      fail(error)
+    },
+
+    async listActivities() {
+      const { data, error } = await sb.from('activities').select('*, activity_steps(*)')
+      fail(error)
+      return (data ?? []).map((r) => toActivity(r, r.activity_steps ?? [])).sort(byModule)
+    },
+
+    async listMySessions(sinceDays) {
+      const since = new Date(Date.now() - sinceDays * 86400000).toISOString()
+      const { data, error } = await sb
+        .from('pause_sessions')
+        .select('id, activity_id, started_at, completed_at')
+        .eq('user_id', await uid())
+        .gte('started_at', since)
+        .order('started_at')
+      fail(error)
+      return (data ?? []).map(toSession)
+    },
+
+    async startSession(activityId) {
+      const { data, error } = await sb
+        .from('pause_sessions')
+        .insert({ user_id: await uid(), activity_id: activityId })
+        .select('id')
+        .single()
+      fail(error)
+      return data!.id as string
+    },
+
+    async completeSession(sessionId) {
+      const { error } = await sb.from('pause_sessions').update({ completed_at: new Date().toISOString() }).eq('id', sessionId)
+      fail(error)
     },
 
     async updatePauseWindow(start, end) {

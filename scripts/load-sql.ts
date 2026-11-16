@@ -14,6 +14,9 @@ export function loadSqlFromDisk(): DemoSql {
     authStub: read('pglite/auth_stub.sql'),
     migrations,
     demoUsers: read('pglite/demo_users.sql'),
-    demoData: read('seed/02_demo_data.sql'),
+    demoData: readdirSync(join(root, 'seed'))
+      .filter((f) => f.endsWith('.sql') && !f.startsWith('01_auth_users'))
+      .sort()
+      .map((f) => read(join('seed', f))),
   }
 }

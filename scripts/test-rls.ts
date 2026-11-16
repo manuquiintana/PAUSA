@@ -114,6 +114,41 @@ check('Un manager no puede cambiar la ventana horaria',
 check('El admin sí puede cambiar la ventana horaria',
   (await q(U.admin, `update companies set pause_window_start = '09:00' returning id`)).length === 1)
 
+console.log('\nFase 2 · Contenido de pausas')
+check('Cualquier usuario autenticado lee el catálogo',
+  (await count(U.employee, 'select count(*) n from activities')) === 15 &&
+  (await count(U.otherAdmin, 'select count(*) n from activity_steps')) > 0)
+check('Un usuario no autenticado no lee el catálogo', await fails(null, 'select count(*) n from activities'))
+check('Nadie puede modificar el catálogo desde la app',
+  await fails(U.admin, `insert into activities (id, module, title, duration_min) values ('x', 'breathe', 'X', 5)`))
+check('Los pasos de cada actividad suman exactamente su duración',
+  (await count(U.employee, `select count(*) n from activities a
+     where a.duration_min * 60 <> (select sum(seconds) from activity_steps s where s.activity_id = a.id)`)) === 0)
+check('Todo el contenido está marcado "pendiente de revisión profesional"',
+  (await count(U.employee, `select count(*) n from activities where review_status <> 'pendiente de revisión profesional'`)) === 0)
+
+console.log('\nFase 2 · Pausas y preferencias')
+check('El empleado ve sus pausas',
+  (await count(U.employee, 'select count(*) n from pause_sessions')) > 0)
+check('El manager obtiene 0 filas de pausas de su equipo',
+  (await count(U.manager, 'select count(*) n from pause_sessions where user_id = $1', [U.employee])) === 0)
+check('No se puede registrar una pausa a nombre de otro',
+  await fails(U.manager, `insert into pause_sessions (user_id, activity_id) values ($1, 'breathe-consciente')`, [U.employee]))
+check('No se puede completar la pausa de otro',
+  (await q(U.manager, `update pause_sessions set completed_at = now() where user_id = $1 returning id`, [U.employee])).length === 0)
+const sid = (await q(U.employee, `insert into pause_sessions (user_id, activity_id) values ($1, 'breathe-consciente') returning id, company_id`, [U.employee]))[0]
+check('Registrar y completar la propia pausa (empresa asignada automáticamente)',
+  sid.company_id === COMPANY_A &&
+  (await q(U.employee, `update pause_sessions set completed_at = now() where id = $1 returning id`, [sid.id])).length === 1)
+check('El empleado guarda sus preferencias',
+  (await q(U.employee, `insert into preferences (user_id, needs, onboarded_at) values ($1, array['calma'], now())
+     on conflict (user_id) do update set needs = excluded.needs returning user_id`, [U.employee])).length === 1)
+check('Nadie puede escribir preferencias de otro',
+  await fails(U.admin, `insert into preferences (user_id, needs) values ($1, array['calma'])
+     on conflict (user_id) do update set needs = excluded.needs`, [U.employee2]))
+const opsLast = (await q(U.manager, `select * from team_wellbeing($1, 'week', 1)`, [T.ops]))[0]
+check('"Pausas completadas" llega solo como total del equipo', Number(opsLast.pauses_completed) > 0)
+
 console.log(`\n${passed} correctas, ${failed} fallidas\n`)
 await pg.close()
 process.exit(failed ? 1 : 0)
