@@ -1,0 +1,36 @@
+@import '@fontsource/inter/latin-400.css';
+@import '@fontsource/inter/latin-ext-400.css';
+@import '@fontsource/inter/latin-500.css';
+@import '@fontsource/inter/latin-ext-500.css';
+@import '@fontsource/inter/latin-600.css';
+@import '@fontsource/inter/latin-ext-600.css';
+@import '@fontsource/fraunces/latin-500.css';
+@import '@fontsource/fraunces/latin-ext-500.css';
+@import '@fontsource/fraunces/latin-600.css';
+@import '@fontsource/fraunces/latin-ext-600.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html { @apply bg-fondo text-tinta font-texto antialiased; -webkit-tap-highlight-color: transparent; }
+  h1, h2, h3 { @apply font-titulo; letter-spacing: -0.01em; }
+  :focus-visible { outline: 3px solid #E58F6E; outline-offset: 2px; border-radius: 6px; }
+}
+
+@layer components {
+  .card { @apply rounded-xl2 bg-white/80 border border-[#E9E3D8] shadow-[0_1px_2px_rgba(31,42,46,0.04)]; }
+  .btn { @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded-full px-5 font-medium transition-colors disabled:opacity-50; }
+  .btn-primary { @apply btn bg-salvia-oscuro text-white hover:bg-[#436655]; }
+  .btn-ghost { @apply btn text-tinta hover:bg-black/5; }
+  .btn-outline { @apply btn border border-[#D9D2C5] bg-white hover:bg-fondo; }
+  .input { @apply min-h-[44px] w-full rounded-xl border border-[#D9D2C5] bg-white px-4 text-tinta placeholder:text-neutro-oscuro focus:border-salvia; }
+}
+
+@keyframes breathe {
+  0%, 100% { transform: scale(0.82); opacity: 0.75; }
+  50% { transform: scale(1); opacity: 1; }
+}
+.animate-breathe { animation: breathe 8s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .animate-breathe { animation: none; } }
