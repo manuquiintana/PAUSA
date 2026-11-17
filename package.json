@@ -8,7 +8,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "lint": "eslint .",
-    "test:rls": "tsx scripts/test-rls.ts"
+    "test:rls": "tsx scripts/test-rls.ts",
+    "voz:generar": "tsx scripts/generate-voice.ts"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.16",

@@ -26,6 +26,13 @@ con datos de ejemplo. Se entra eligiendo un usuario demo. Los cambios se pierden
    `02_demo_data.sql` y `03_demo_pauses.sql`. Usuarios: `ana@demo-logistica.es`, `carlos@…`, `irene@…`, `lucia@…`,
    contraseña `PausaDemo2026!`.
 
+## Voz guía (ElevenLabs)
+Los audios de cada indicación se generan una vez y se guardan en `public/voz/`.
+- Desde GitHub: añade el secreto `ELEVENLABS_API_KEY` (Settings → Secrets and variables → Actions)
+  y lanza la acción **Generar voz** (pestaña Actions → Run workflow). Los audios se suben solos al repo.
+- En local: pon `ELEVENLABS_API_KEY=...` en `.env.local` y ejecuta `npm run voz:generar`.
+Solo se generan los textos nuevos o cambiados. Sin audio para un texto, la app usa la voz del navegador.
+
 ## Comandos
 - `npm run dev` — desarrollo
 - `npm run test` — tests de lógica (Vitest)

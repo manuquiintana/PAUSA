@@ -250,7 +250,7 @@ export default function PlayerPage() {
               </span>
             </button>
           )}
-          {VoiceGuide.supported && (
+          {VoiceGuide.available && (
             <button type="button" onClick={toggleVoice} aria-pressed={voiceOn}
               aria-label={voiceOn ? 'Silenciar la voz guía' : 'Activar la voz guía'}
               title={voiceOn ? 'Voz guía activada' : 'Voz guía desactivada'}

@@ -1,0 +1,36 @@
+# Genera los audios de la voz guía con ElevenLabs y los guarda en el repo (public/voz/).
+# Se lanza a mano: pestaña Actions → "Generar voz" → Run workflow.
+# Requiere el secreto ELEVENLABS_API_KEY (Settings → Secrets and variables → Actions).
+name: Generar voz
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  generar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Generar audios
+        run: npm run voz:generar
+        env:
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+      - name: Guardar audios en el repo
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/voz
+          if git diff --cached --quiet; then
+            echo "No hay audios nuevos."
+          else
+            git commit -m "Voz guía: audios generados con ElevenLabs"
+            git push
+          fi

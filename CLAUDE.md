@@ -63,7 +63,7 @@ La sugerencia de pausa usa esas preferencias, excluye ejercicios de pie si no pu
 
 ## Sonido y voz
 - Pensado para hacer las pausas con los ojos cerrados: guía sonora en las respiraciones (tono que sube al inspirar, que baja al soltar y cuenco tibetano en cada segundo) y voz suave que lee cada paso.
-- Voz provisional: síntesis del navegador. Antes de los pilotos se sustituye por audios con voz profesional.
+- Voz: audios generados con ElevenLabs (voz 8gK5gnQBZnJWm1ta8R8X) en `public/voz/` con `npm run voz:generar` o la acción de GitHub "Generar voz" (secreto ELEVENLABS_API_KEY). Si un texto no tiene audio, se usa la voz del navegador. La clave nunca va al frontend.
 - Sonido ambiente en todas las pausas (variante "luz" en el recorrido por el cuerpo) y burbuja al completar el anillo de cada paso. Sonido y voz se pueden silenciar por separado.
 - Al terminar cada pausa, un "¿Sabías que…?" con respaldo científico y su fuente.
 
@@ -81,3 +81,4 @@ La sugerencia de pausa usa esas preferencias, excluye ejercicios de pie si no pu
 - `npm run test` — tests
 - `npm run lint` — lint
 - `npm run test:rls` — verificación de políticas de privacidad (crear en fase 1)
+- `npm run voz:generar` — genera los audios de la voz guía (necesita ELEVENLABS_API_KEY)
