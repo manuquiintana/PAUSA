@@ -3,8 +3,10 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { ErrorNote, Spinner } from '../components/ui'
 import { useApp } from '../lib/app-context'
 import { MODULE_BY_ID } from '../lib/modules'
-import { breathAt, fmtClock, locate, parseAnimation, ringCompleted, stepStartMs } from '../lib/player'
+import { breathAt, breathEvents, fmtClock, locate, parseAnimation, ringCompleted, stepStartMs } from '../lib/player'
 import { loadSoundPref, saveSoundPref, SoundEngine } from '../lib/sound'
+import { loadVoicePref, saveVoicePref, VoiceGuide } from '../lib/voice'
+import { factFor } from '../lib/facts'
 import { Avatar } from '../components/Avatar'
 import { type Guide, isPose, isStanding, type Joints, poseAt } from '../lib/avatar'
 import type { Activity } from '../lib/types'
@@ -26,6 +28,9 @@ export default function PlayerPage() {
   const [needsTap, setNeedsTap] = useState(false)
   const sound = useRef<SoundEngine | null>(null)
   const prevElapsed = useRef(0)
+  const [voiceOn, setVoiceOn] = useState(loadVoicePref)
+  const voice = useRef<VoiceGuide | null>(null)
+  const spokenStep = useRef(-1)
 
   useEffect(() => {
     getActivities().then((all) => setActivity(all.find((a) => a.id === id) ?? null))
@@ -61,7 +66,7 @@ export default function PlayerPage() {
     sound.current = engine
     engine.unlock().then((ok) => {
       if (sound.current !== engine) return
-      if (ok) engine.startAmbient(activity.module)
+      if (ok) engine.startAmbient(activity.module, ambientVariant(activity.id))
       else setNeedsTap(true) // el navegador pide un toque antes de reproducir sonido
     })
     return () => {
@@ -70,22 +75,71 @@ export default function PlayerPage() {
     }
   }, [activity])
 
+  // Voz guía (síntesis del navegador). Mientras habla, el ambiente baja un poco.
+  useEffect(() => {
+    if (!activity) return
+    const v = new VoiceGuide(loadVoicePref())
+    v.onSpeakingChange = (speaking) => sound.current?.duck(speaking)
+    voice.current = v
+    spokenStep.current = -1
+    return () => {
+      v.cancel()
+      if (voice.current === v) voice.current = null
+    }
+  }, [activity])
+
   useEffect(() => {
     sound.current?.setAmbientPaused(!running)
+    if (!running) voice.current?.cancel()
   }, [running])
 
-  // Burbuja cuando se completa el anillo exterior de un paso.
+  // Guía de cada instante: voz al empezar cada paso, tonos y cuenco en la respiración,
+  // y burbuja cuando se completa el anillo exterior de un paso.
   useEffect(() => {
-    if (activity && ringCompleted(activity.steps, prevElapsed.current, elapsed)) sound.current?.pop()
+    if (!activity) return
+    const prev = prevElapsed.current
     prevElapsed.current = elapsed
+    if (ringCompleted(activity.steps, prev, elapsed)) sound.current?.pop()
+
+    const cur = locate(activity.steps, elapsed)
+    if (cur.done) return
+    const step = activity.steps[cur.index]
+    const newStep = spokenStep.current !== cur.index
+    if (newStep) {
+      spokenStep.current = cur.index
+      voice.current?.speak(step.text, { interrupt: true })
+    }
+    const anim = parseAnimation(step.animation)
+    if (anim.kind === 'breath') {
+      const before = newStep ? -1 : locate(activity.steps, prev).stepElapsedMs
+      for (const ev of breathEvents(anim.phases, before, cur.stepElapsedMs)) {
+        if (ev.type === 'tick') sound.current?.bowl(0.35)
+        else {
+          sound.current?.cue(ev.kind)
+          // La voz dice la fase solo si no está leyendo la indicación del paso
+          if (voice.current && !voice.current.speaking) voice.current.speak(ev.label, { rate: 0.8 })
+        }
+      }
+    }
   }, [elapsed, activity])
+
+  const toggleVoice = useCallback(() => {
+    const on = !voiceOn
+    setVoiceOn(on)
+    saveVoicePref(on)
+    voice.current?.setEnabled(on)
+    if (on && activity) {
+      const cur = locate(activity.steps, prevElapsed.current)
+      if (!cur.done) voice.current?.speak(activity.steps[cur.index].text, { interrupt: true })
+    }
+  }, [voiceOn, activity])
 
   /** Activa el audio tras un toque si el navegador lo había bloqueado. */
   const ensureSound = useCallback(async () => {
     const engine = sound.current
     if (!engine || !activity || engine.isRunning) return
     if (await engine.unlock()) {
-      engine.startAmbient(activity.module)
+      engine.startAmbient(activity.module, ambientVariant(activity.id))
       setNeedsTap(false)
     }
   }, [activity])
@@ -115,6 +169,7 @@ export default function PlayerPage() {
     if (pos?.done && !finished) {
       setFinished(true)
       sound.current?.stopAmbient(3)
+      voice.current?.speak('Pausa completada. Gracias por regalarte este momento.', { interrupt: true })
       sessionId.current?.then((sid) => (sid ? backend.completeSession(sid) : undefined)).catch(() => undefined)
     }
   }, [pos?.done, finished, backend])
@@ -155,12 +210,13 @@ export default function PlayerPage() {
 
   if (finished) {
     return (
-      <main className="fixed inset-0 flex flex-col items-center justify-center gap-6 p-6 text-center" style={{ background: m.bg }}>
+      <main className="fixed inset-0 flex flex-col items-center justify-center gap-6 overflow-y-auto p-6 text-center" style={{ background: m.bg }}>
         <span className="flex h-28 w-28 items-center justify-center rounded-full text-5xl text-white" style={{ background: m.color }} aria-hidden="true">✓</span>
         <div>
           <h1 className="text-3xl font-semibold md:text-4xl">Pausa completada</h1>
           <p className="mt-2 text-[#3E4A4E]">Gracias por regalarte estos {activity.durationMin} minutos.</p>
         </div>
+        <FactCard activityId={activity.id} color={m.color} />
         <div className="flex flex-wrap justify-center gap-3">
           <Link to="/" className="btn-primary">Volver al inicio</Link>
           <Link to="/pausas" className="btn-outline">Ver otras pausas</Link>
@@ -172,8 +228,8 @@ export default function PlayerPage() {
   return (
     <main className="fixed inset-0 flex flex-col" style={{ background: m.bg }} aria-label={`Pausa: ${activity.title}`}>
       <header className="flex items-center gap-3 px-4 pt-[max(1rem,env(safe-area-inset-top))] md:px-8">
-        <button type="button" onClick={exit} className="btn bg-white/70 px-4 hover:bg-white" aria-label="Salir de la pausa">
-          <span aria-hidden="true">✕</span> Salir
+        <button type="button" onClick={exit} className="btn min-w-[48px] bg-white/70 px-3 hover:bg-white sm:px-4" aria-label="Salir de la pausa">
+          <span aria-hidden="true">✕</span><span className="hidden sm:inline">Salir</span>
         </button>
         <div className="min-w-0 flex-1 text-center">
           <p className="truncate font-titulo text-lg font-semibold">{activity.title}</p>
@@ -192,6 +248,14 @@ export default function PlayerPage() {
               <span className="block h-9 w-9 overflow-hidden rounded-full bg-salvia-claro">
                 <Avatar guide={guide} crop="cara" className="h-full w-full" />
               </span>
+            </button>
+          )}
+          {VoiceGuide.supported && (
+            <button type="button" onClick={toggleVoice} aria-pressed={voiceOn}
+              aria-label={voiceOn ? 'Silenciar la voz guía' : 'Activar la voz guía'}
+              title={voiceOn ? 'Voz guía activada' : 'Voz guía desactivada'}
+              className="btn min-w-[48px] bg-white/70 px-3 hover:bg-white">
+              <VoiceIcon on={voiceOn} />
             </button>
           )}
           <button type="button" onClick={toggleSound} aria-pressed={soundOn && !needsTap}
@@ -360,6 +424,36 @@ function AvatarVisual({ anim, pose, guide, stepElapsed, progress, color, reduced
       )}
     </div>
   )
+}
+
+/** "¿Sabías que…?" con fuente, al terminar la pausa. */
+function FactCard({ activityId, color }: { activityId: string; color: string }) {
+  const fact = factFor(activityId, new Date().getDate())
+  return (
+    <aside className="max-w-md rounded-2xl bg-white/80 p-5 text-left shadow-sm" aria-label="Dato curioso">
+      <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: color === '#E58F6E' ? '#A8573A' : '#4F7562' }}>¿Sabías que…?</p>
+      <p className="mt-2 text-[15px] leading-relaxed text-tinta">{fact.text}</p>
+      <p className="mt-3 text-xs text-[#5E686D]">
+        Fuente:{' '}
+        {fact.url ? <a href={fact.url} target="_blank" rel="noreferrer" className="underline underline-offset-2">{fact.source}</a> : fact.source}
+      </p>
+    </aside>
+  )
+}
+
+function VoiceIcon({ on }: { on: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8"
+      strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M8 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM2 21c0-3.3 2.7-6 6-6s6 2.7 6 6" />
+      {on ? <path d="M17 8.5a3.5 3.5 0 0 1 0 5M19.5 6a7 7 0 0 1 0 10" /> : <path d="m17 9 4 4m0-4-4 4" />}
+    </svg>
+  )
+}
+
+/** El recorrido por el cuerpo usa el ambiente de "luz". */
+function ambientVariant(activityId: string): 'normal' | 'luz' {
+  return activityId === 'mind-recorrido-cuerpo' ? 'luz' : 'normal'
 }
 
 function SoundIcon({ on }: { on: boolean }) {

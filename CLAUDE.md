@@ -26,11 +26,11 @@ Cada actividad = secuencia de pasos (texto breve + segundos + animación sencill
 El contenido de ejemplo debe marcarse como "pendiente de revisión profesional".
 
 ## Personalización (funcionalidad estrella)
-Onboarding de 4 preguntas (máx. 60 s): qué necesita más (cuello/espalda, desconectar, concentración, energía, calma — multi), cuántas pausas al día (1/2/3), si puede ponerse de pie, horario aproximado.
+Onboarding de 4 preguntas (máx. 60 s): qué necesita más (Estiramientos, Calma, Focus, Energía, Mindfulness — multi), cuántas pausas al día (1/2/3), si puede ponerse de pie, horario aproximado.
 La sugerencia de pausa usa esas preferencias, excluye ejercicios de pie si no puede, y no repite la actividad del día anterior.
 
 ## Check-in
-- Inicio de jornada: "¿Cómo empiezas el día?" escala 1-10 en un toque, nota libre opcional, botón "Ahora no".
+- Inicio de jornada: "¿Cómo te sientes hoy?" escala 1-10 en un toque, nota libre opcional, botón "Ahora no".
 - Fin de jornada: "¿Cómo terminas el día?" igual.
 - Voluntario; nunca bloquea la app.
 - Si la nota es ≤ 4, sugerencia amable de Breathe o Grounding, sin tono clínico.
@@ -58,6 +58,14 @@ La sugerencia de pausa usa esas preferencias, excluye ejercicios de pie si no pu
 - Tipografía: títulos "Fraunces", texto "Inter".
 - Reproductor a pantalla completa con animación central (círculo de respiración, progreso por paso); pausar y salir siempre visibles.
 - Responsive: 375 px, 768 px y 1366 px. Contraste AA, toque ≥ 44 px, usable con teclado.
+- Horas siempre en formato 24 h.
+- Avatar guía (mujer/hombre, ilustración plana propia) que hace cada ejercicio a la vez que la persona.
+
+## Sonido y voz
+- Pensado para hacer las pausas con los ojos cerrados: guía sonora en las respiraciones (tono que sube al inspirar, que baja al soltar y cuenco tibetano en cada segundo) y voz suave que lee cada paso.
+- Voz provisional: síntesis del navegador. Antes de los pilotos se sustituye por audios con voz profesional.
+- Sonido ambiente en todas las pausas (variante "luz" en el recorrido por el cuerpo) y burbuja al completar el anillo de cada paso. Sonido y voz se pueden silenciar por separado.
+- Al terminar cada pausa, un "¿Sabías que…?" con respaldo científico y su fuente.
 
 ## Reglas de trabajo
 - Antes de cada fase, presenta un plan de 5-10 líneas (pantallas, tablas, archivos) y espera mi OK.

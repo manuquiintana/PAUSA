@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Card, ErrorNote, PageTitle, Proximamente, Spinner } from '../components/ui'
+import { TimeField } from '../components/TimeField'
 import { WellbeingPanel } from '../components/WellbeingPanel'
 import { useApp } from '../lib/app-context'
 import { hhmm, isValidWindow } from '../lib/format'
@@ -89,14 +90,8 @@ function PauseWindowCard() {
       <p className="mt-1 text-sm text-neutro-oscuro">Los recordatorios solo se enviarán dentro de este horario.</p>
       <form onSubmit={save} className="mt-5 space-y-4">
         <div className="grid grid-cols-2 gap-3">
-          <label>
-            <span className="mb-1 block text-sm font-medium">Desde</span>
-            <input className="input" type="time" value={start} onChange={(e) => { setStart(e.target.value); setStatus('idle') }} required />
-          </label>
-          <label>
-            <span className="mb-1 block text-sm font-medium">Hasta</span>
-            <input className="input" type="time" value={end} onChange={(e) => { setEnd(e.target.value); setStatus('idle') }} required />
-          </label>
+          <TimeField label="Desde" value={start} onChange={(v) => { setStart(v); setStatus('idle') }} />
+          <TimeField label="Hasta" value={end} onChange={(v) => { setEnd(v); setStatus('idle') }} />
         </div>
         {error && <ErrorNote message={error} />}
         <div className="flex items-center gap-3">

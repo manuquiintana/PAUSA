@@ -133,6 +133,25 @@ const MOVES: Record<string, Move> = {
     },
   },
 
+  // ───── Visualizaciones ─────
+  // Llevar el peso a un lado y al otro sobre la silla
+  'peso-lados': {
+    loop: [[0, {}], [2500, { shiftX: -9, tilt: -5, head: 4 }], [4500, { shiftX: -9, tilt: -5, head: 4 }], [7000, {}],
+      [9500, { shiftX: 9, tilt: 5, head: -4 }], [11500, { shiftX: 9, tilt: 5, head: -4 }], [14000, {}]],
+  },
+  // Guardar algo en una caja imaginaria: de las manos al pecho a dejarlo delante, abajo
+  guardar: {
+    loop: [[0, {}], [1500, { lx: 90, ly: 146, rx: 110, ry: 146, open: 1 }], [3000, { lx: 90, ly: 146, rx: 110, ry: 146, open: 1 }],
+      [5000, { lx: 84, ly: 170, rx: 116, ry: 170, open: 1, nod: 0.5 }], [6500, { lx: 84, ly: 170, rx: 116, ry: 170, nod: 0.5 }], [8500, {}]],
+  },
+  // Hacer una "foto" con las manos delante de la cara
+  foto: {
+    intro: [[0, {}], [1800, { lx: 80, ly: 104, rx: 120, ry: 104, open: 1 }]],
+    loop: [[0, { lx: 80, ly: 104, rx: 120, ry: 104, open: 1 }], [2500, { lx: 78, ly: 102, rx: 122, ry: 102, open: 1 }],
+      [2800, { lx: 82, ly: 104, rx: 118, ry: 104, open: 0 }], [3100, { lx: 80, ly: 104, rx: 120, ry: 104, open: 1 }],
+      [6000, { lx: 80, ly: 104, rx: 120, ry: 104, open: 1 }]],
+  },
+
   // ───── Sentidos y mirada (ojos abiertos) ─────
   'mirar-alrededor': {
     intro: [[0, {}], [800, { eyes: 1 }]],

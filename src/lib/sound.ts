@@ -15,6 +15,9 @@ export const MODULE_CHORDS: Record<ModuleId, number[]> = {
   reset: [98.0, 146.83, 196.0], // Sol
 }
 
+/** Acorde claro y luminoso para el recorrido por el cuerpo ("luz"). */
+const LIGHT_CHORD = [261.63, 392.0, 523.25]
+
 const AMBIENT_LEVEL = 0.55
 const STORAGE_KEY = 'pausa-sonido'
 
@@ -60,6 +63,9 @@ export class SoundEngine {
   private master: GainNode | null = null
   private ambientBus: GainNode | null = null
   private ambientNodes: AudioScheduledSourceNode[] = []
+  private sparkleTimer: ReturnType<typeof setInterval> | null = null
+  private ambientPaused = false
+  private ducked = false
   private muted: boolean
 
   constructor(muted = false) {
@@ -97,8 +103,11 @@ export class SoundEngine {
     }
   }
 
-  /** Arranca el ambiente del módulo con un fundido de entrada lento. */
-  startAmbient(module: ModuleId) {
+  /**
+   * Arranca el ambiente del módulo con un fundido de entrada lento.
+   * La variante 'luz' (recorrido por el cuerpo) suena más clara y con destellos suaves.
+   */
+  startAmbient(module: ModuleId, variant: 'normal' | 'luz' = 'normal') {
     const ctx = this.ctx
     if (!ctx || !this.master || this.ambientBus) return
     const t = ctx.currentTime
@@ -137,7 +146,13 @@ export class SoundEngine {
     tremolo.connect(tremDepth).connect(padGain.gain)
     padFilter.connect(padGain).connect(bus)
     const oscs: OscillatorNode[] = []
-    for (const f of MODULE_CHORDS[module]) {
+    const chord = variant === 'luz' ? LIGHT_CHORD : MODULE_CHORDS[module]
+    if (variant === 'luz') {
+      padGain.gain.value = 0.028
+      padFilter.frequency.value = 2400
+      waveGain.gain.value = 0.08
+    }
+    for (const f of chord) {
       for (const detune of [-4, 4]) {
         const o = ctx.createOscillator()
         o.type = 'sine'
@@ -151,20 +166,111 @@ export class SoundEngine {
     const sources: AudioScheduledSourceNode[] = [noise, lfo, tremolo, ...oscs]
     sources.forEach((s) => s.start(t))
     this.ambientNodes = sources
+    if (variant === 'luz') {
+      this.sparkleTimer = setInterval(() => {
+        if (!this.ambientPaused) this.sparkle()
+      }, 2600)
+    }
+  }
+
+  /** Destello de luz: notas altas muy suaves, como polvo brillante. */
+  private sparkle() {
+    const ctx = this.ctx
+    if (!ctx || !this.ambientBus) return
+    const notes = [1046.5, 1174.7, 1318.5, 1568, 1760]
+    const t = ctx.currentTime
+    for (let i = 0; i < 3; i++) {
+      const o = ctx.createOscillator()
+      o.type = 'sine'
+      o.frequency.value = notes[Math.floor(Math.random() * notes.length)]
+      const g = ctx.createGain()
+      const st = t + i * 0.18 + Math.random() * 0.1
+      g.gain.setValueAtTime(0.0001, st)
+      g.gain.exponentialRampToValueAtTime(0.025, st + 0.02)
+      g.gain.exponentialRampToValueAtTime(0.0001, st + 1.6)
+      o.connect(g).connect(this.ambientBus)
+      o.start(st)
+      o.stop(st + 1.7)
+    }
+  }
+
+  /** Señal de respiración: inspirar = tono que sube; soltar = tono que baja; mantener = nota suave. */
+  cue(kind: 'inhale' | 'exhale' | 'hold') {
+    const ctx = this.ctx
+    if (!ctx || !this.master || ctx.state !== 'running') return
+    const t = ctx.currentTime + 0.01
+    const o = ctx.createOscillator()
+    o.type = 'sine'
+    const g = ctx.createGain()
+    const [from, to, len, vol] =
+      kind === 'inhale' ? [392, 587.3, 1.1, 0.12] : kind === 'exhale' ? [587.3, 329.6, 1.5, 0.11] : [440, 440, 0.8, 0.06]
+    o.frequency.setValueAtTime(from, t)
+    o.frequency.exponentialRampToValueAtTime(to, t + len * 0.8)
+    g.gain.setValueAtTime(0.0001, t)
+    g.gain.exponentialRampToValueAtTime(vol, t + 0.08)
+    g.gain.exponentialRampToValueAtTime(0.0001, t + len)
+    o.connect(g).connect(this.master)
+    o.start(t)
+    o.stop(t + len + 0.05)
+  }
+
+  /**
+   * Cuenco tibetano: parciales inarmónicos con un ligero batido (la "vibración").
+   * `strength` < 1 para el toque de cada segundo, 1 para un golpe completo.
+   */
+  bowl(strength = 1) {
+    const ctx = this.ctx
+    if (!ctx || !this.master || ctx.state !== 'running') return
+    const t = ctx.currentTime + 0.01
+    const f0 = 196
+    const decay = 1.2 + 3.5 * strength
+    const out = ctx.createGain()
+    out.gain.value = 0.18 * strength
+    out.connect(this.master)
+    const partials: [number, number][] = [[1, 1], [2.76, 0.45], [5.4, 0.2], [8.9, 0.08]]
+    for (const [ratio, amp] of partials) {
+      for (const beat of [0, 1.8]) {
+        const o = ctx.createOscillator()
+        o.type = 'sine'
+        o.frequency.value = f0 * ratio + beat
+        const g = ctx.createGain()
+        g.gain.setValueAtTime(0.0001, t)
+        g.gain.exponentialRampToValueAtTime(amp * 0.5, t + 0.006)
+        g.gain.exponentialRampToValueAtTime(0.0001, t + decay / Math.sqrt(ratio))
+        o.connect(g).connect(out)
+        o.start(t)
+        o.stop(t + decay + 0.1)
+      }
+    }
+    setTimeout(() => { try { out.disconnect() } catch { /* nada */ } }, (decay + 0.5) * 1000)
+  }
+
+  /** Baja el ambiente mientras habla la voz guía. */
+  duck(on: boolean) {
+    this.ducked = on
+    this.applyAmbientLevel(0.6)
+  }
+
+  private applyAmbientLevel(seconds: number) {
+    if (!this.ctx || !this.ambientBus) return
+    const t = this.ctx.currentTime
+    const g = this.ambientBus.gain
+    const target = this.ambientPaused ? 0 : this.ducked ? AMBIENT_LEVEL * 0.45 : AMBIENT_LEVEL
+    g.cancelScheduledValues(t)
+    g.setValueAtTime(g.value, t)
+    g.linearRampToValueAtTime(target, t + seconds)
   }
 
   /** Baja o sube el ambiente (al pausar / reanudar). */
   setAmbientPaused(paused: boolean) {
-    if (!this.ctx || !this.ambientBus) return
-    const t = this.ctx.currentTime
-    const g = this.ambientBus.gain
-    g.cancelScheduledValues(t)
-    g.setValueAtTime(g.value, t)
-    g.linearRampToValueAtTime(paused ? 0 : AMBIENT_LEVEL, t + (paused ? 0.8 : 1.5))
+    this.ambientPaused = paused
+    this.applyAmbientLevel(paused ? 0.8 : 1.5)
   }
 
   /** Apaga el ambiente con un fundido de salida. */
   stopAmbient(fadeSeconds = 2.5) {
+    if (this.sparkleTimer) clearInterval(this.sparkleTimer)
+    this.sparkleTimer = null
     if (!this.ctx || !this.ambientBus) return
     const t = this.ctx.currentTime
     const g = this.ambientBus.gain

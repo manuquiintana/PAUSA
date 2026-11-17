@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { breathAt, fmtClock, locate, parseAnimation, ringCompleted, stepStartMs } from './player'
+import { breathAt, breathEvents, fmtClock, locate, parseAnimation, ringCompleted, stepStartMs } from './player'
+import { pickSpanishVoice, toSpeech } from './voice'
 
 const steps = [
   { text: 'a', seconds: 10, animation: 'still' },
@@ -53,4 +54,39 @@ describe('animaciones', () => {
     expect(parseAnimation('eyes').kind).toBe('eyes')
   })
   it('reloj', () => expect(fmtClock(65000)).toBe('1:05'))
+})
+
+describe('guía sonora de la respiración', () => {
+  const phases = (() => {
+    const a = parseAnimation('breath:4-6')
+    if (a.kind !== 'breath') throw new Error()
+    return a.phases
+  })()
+  it('al empezar el paso suena "Inspira"', () =>
+    expect(breathEvents(phases, -1, 16)).toEqual([{ type: 'phase', label: 'Inspira', kind: 'inhale' }]))
+  it('cada segundo dentro de la fase suena el cuenco', () =>
+    expect(breathEvents(phases, 990, 1010)).toEqual([{ type: 'tick' }]))
+  it('a los 4 s empieza "Suelta el aire"', () =>
+    expect(breathEvents(phases, 3990, 4010)).toEqual([{ type: 'phase', label: 'Suelta el aire', kind: 'exhale' }]))
+  it('el ciclo se repite: a los 10 s vuelve "Inspira"', () =>
+    expect(breathEvents(phases, 9990, 10010)[0]).toMatchObject({ label: 'Inspira' }))
+  it('sin eventos entre segundos ni en saltos', () => {
+    expect(breathEvents(phases, 1100, 1900)).toEqual([])
+    expect(breathEvents(phases, 0, 5000)).toEqual([])
+  })
+})
+
+describe('voz', () => {
+  it('elige español de España y prefiere voces naturales', () => {
+    const v = pickSpanishVoice([
+      { lang: 'en-US', name: 'Samantha', localService: true },
+      { lang: 'es-MX', name: 'Paulina', localService: true },
+      { lang: 'es-ES', name: 'Mónica', localService: true },
+      { lang: 'es-ES', name: 'Microsoft Elvira Online (Natural)', localService: false },
+    ])
+    expect(v?.name).toContain('Elvira')
+  })
+  it('si no hay es-ES usa otro español', () =>
+    expect(pickSpanishVoice([{ lang: 'es-MX', name: 'Paulina', localService: true }])?.lang).toBe('es-MX'))
+  it('limpia comillas para leer', () => expect(toSpeech('Repite: «Por hoy, es suficiente».')).toBe('Repite: Por hoy, es suficiente.'))
 })

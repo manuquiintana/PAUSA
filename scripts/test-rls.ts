@@ -117,7 +117,7 @@ check('El admin sí puede cambiar la ventana horaria',
 
 console.log('\nFase 2 · Contenido de pausas')
 check('Cualquier usuario autenticado lee el catálogo',
-  (await count(U.employee, 'select count(*) n from activities')) === 15 &&
+  (await count(U.employee, 'select count(*) n from activities')) === 16 &&
   (await count(U.otherAdmin, 'select count(*) n from activity_steps')) > 0)
 check('Un usuario no autenticado no lee el catálogo', await fails(null, 'select count(*) n from activities'))
 check('Nadie puede modificar el catálogo desde la app',

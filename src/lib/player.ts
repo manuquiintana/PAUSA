@@ -100,6 +100,42 @@ export function breathAt(phases: BreathPhase[], ms: number): { label: string; sc
   return { label: phases[0].label, scale: phases[0].from, secondsLeft: phases[0].seconds }
 }
 
+export type BreathEvent = { type: 'phase'; label: string; kind: 'inhale' | 'exhale' | 'hold' } | { type: 'tick' }
+
+/**
+ * Eventos de la respiración guiada entre dos instantes del paso (intervalo (prevMs, nextMs]):
+ * inicio de cada fase (para el tono y la voz) y cada segundo dentro de la fase (para el cuenco).
+ * Usa prevMs = -1 al empezar un paso para incluir el instante 0.
+ */
+export function breathEvents(phases: BreathPhase[], prevMs: number, nextMs: number): BreathEvent[] {
+  if (nextMs <= prevMs || nextMs - prevMs > 1000) return []
+  const cycle = phases.reduce((t, p) => t + p.seconds * 1000, 0)
+  const events: BreathEvent[] = []
+  // Recorremos los límites de segundo que caen en el intervalo
+  const first = Math.floor(prevMs / 1000) + 1
+  const last = Math.floor(nextMs / 1000)
+  for (let s = Math.max(0, first); s <= last; s++) {
+    const ms = s * 1000
+    let t = ms % cycle
+    let isPhaseStart = false
+    let phase = phases[0]
+    for (const p of phases) {
+      const len = p.seconds * 1000
+      if (t < len) {
+        phase = p
+        isPhaseStart = t === 0
+        break
+      }
+      t -= len
+    }
+    if (isPhaseStart) {
+      const kind = phase.label === 'Inspira' ? 'inhale' : phase.label === 'Mantén' ? 'hold' : 'exhale'
+      events.push({ type: 'phase', label: phase.label, kind })
+    } else events.push({ type: 'tick' })
+  }
+  return events
+}
+
 export function fmtClock(ms: number): string {
   const s = Math.ceil(ms / 1000)
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`

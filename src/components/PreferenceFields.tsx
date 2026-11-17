@@ -2,8 +2,9 @@ import { NEED_LABEL } from '../lib/modules'
 import type { Guide } from '../lib/avatar'
 import type { Need } from '../lib/types'
 import { Avatar } from './Avatar'
+import { TimeField } from './TimeField'
 
-const NEEDS: Need[] = ['cuello_espalda', 'desconectar', 'concentracion', 'energia', 'calma']
+const NEEDS: Need[] = ['cuello_espalda', 'calma', 'concentracion', 'energia', 'desconectar']
 
 const choiceCls = (on: boolean) =>
   `min-h-[52px] rounded-2xl border px-4 py-3 text-left font-medium transition focus-visible:outline-coral ${
@@ -61,14 +62,8 @@ export function StandField({ value, onChange }: { value: boolean; onChange: (v: 
 export function ScheduleField({ start, end, onChange }: { start: string; end: string; onChange: (s: string, e: string) => void }) {
   return (
     <div className="grid grid-cols-2 gap-3">
-      <label>
-        <span className="mb-1 block text-sm font-medium">Empiezo hacia las</span>
-        <input className="input" type="time" value={start} onChange={(e) => onChange(e.target.value, end)} required />
-      </label>
-      <label>
-        <span className="mb-1 block text-sm font-medium">Termino hacia las</span>
-        <input className="input" type="time" value={end} onChange={(e) => onChange(start, e.target.value)} required />
-      </label>
+      <TimeField label="Empiezo hacia las" value={start} onChange={(v) => onChange(v, end)} />
+      <TimeField label="Termino hacia las" value={end} onChange={(v) => onChange(start, v)} />
     </div>
   )
 }

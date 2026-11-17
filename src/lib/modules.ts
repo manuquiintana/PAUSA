@@ -27,9 +27,9 @@ export const MODULES: ModuleInfo[] = [
 export const MODULE_BY_ID = Object.fromEntries(MODULES.map((m) => [m.id, m])) as Record<ModuleId, ModuleInfo>
 
 export const NEED_LABEL: Record<Need, string> = {
-  cuello_espalda: 'Cuello y espalda',
-  desconectar: 'Desconectar',
-  concentracion: 'Concentración',
+  cuello_espalda: 'Estiramientos',
+  desconectar: 'Mindfulness',
+  concentracion: 'Focus',
   energia: 'Energía',
   calma: 'Calma',
 }

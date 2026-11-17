@@ -19,7 +19,7 @@ export default function HomePage() {
         <Card className="lg:col-span-2">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h2 className="text-xl font-semibold">¿Cómo empiezas el día?</h2>
+              <h2 className="text-xl font-semibold">¿Cómo te sientes hoy?</h2>
               <p className="mt-1 text-neutro-oscuro">Un toque del 1 al 10. Es voluntario y solo lo ves tú.</p>
             </div>
             <Proximamente label="Fase 3" />
