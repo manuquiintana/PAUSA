@@ -153,9 +153,14 @@ check('"Pausas completadas" llega solo como total del equipo', Number(opsLast.pa
 console.log('\nAvatar guía')
 const poses = (await q(U.employee, 'select distinct pose from activity_steps where pose is not null')).map((r) => String(r.pose))
 check('Todos los movimientos asignados existen en el avatar', poses.length > 0 && poses.every((p) => AVATAR_POSES.includes(p)))
-check('Los pasos de actividades de pie no muestran el avatar sentado',
+check('Todos los pasos de todas las actividades tienen movimiento del avatar',
+  (await count(U.employee, 'select count(*) n from activity_steps where pose is null')) === 0)
+check('Las actividades de pie empiezan con el avatar de pie',
   (await count(U.employee, `select count(*) n from activity_steps s join activities a on a.id = s.activity_id
-     where a.requires_standing and s.pose = 'respirar'`)) === 0)
+     where a.requires_standing and s.position = 1 and s.pose not like 'de-pie%'`)) === 0)
+check('Las actividades sentadas nunca muestran ejercicios de pie salvo "caminar" para cambiar de sitio',
+  (await count(U.employee, `select count(*) n from activity_steps s join activities a on a.id = s.activity_id
+     where not a.requires_standing and s.pose like 'de-pie%' and s.pose <> 'de-pie-caminar'`)) === 0)
 check('La guía elegida es privada (otro usuario no la ve)',
   (await count(U.manager, 'select count(*) n from preferences where user_id = $1', [U.employee])) === 0)
 check('La guía solo admite mujer u hombre',
