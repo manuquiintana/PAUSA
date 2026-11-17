@@ -28,6 +28,18 @@ export function locate(steps: ActivityStep[], elapsedMs: number): PlayerPosition
   return { index: steps.length - 1, stepElapsedMs: 0, stepRemainingMs: 0, totalMs, totalRemainingMs: 0, done: true }
 }
 
+/**
+ * ¿Se ha completado el anillo de un paso entre dos instantes del reloj?
+ * Solo cuenta el avance natural del tiempo (como mucho 1 s entre ticks), no los saltos manuales.
+ */
+export function ringCompleted(steps: ActivityStep[], prevMs: number, nextMs: number): boolean {
+  if (nextMs <= prevMs || nextMs - prevMs > 1000) return false
+  const a = locate(steps, prevMs)
+  const b = locate(steps, nextMs)
+  if (a.done) return false
+  return b.done || b.index > a.index
+}
+
 /** Tiempo transcurrido al inicio del paso `index` (para saltar de paso). */
 export function stepStartMs(steps: ActivityStep[], index: number): number {
   return steps.slice(0, Math.max(0, index)).reduce((t, s) => t + s.seconds * 1000, 0)

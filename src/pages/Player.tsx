@@ -3,7 +3,8 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { ErrorNote, Spinner } from '../components/ui'
 import { useApp } from '../lib/app-context'
 import { MODULE_BY_ID } from '../lib/modules'
-import { breathAt, fmtClock, locate, parseAnimation, stepStartMs } from '../lib/player'
+import { breathAt, fmtClock, locate, parseAnimation, ringCompleted, stepStartMs } from '../lib/player'
+import { loadSoundPref, saveSoundPref, SoundEngine } from '../lib/sound'
 import type { Activity } from '../lib/types'
 
 /** Reproductor a pantalla completa. Pausar y salir siempre visibles. Espacio = pausar, Esc = salir. */
@@ -18,6 +19,10 @@ export default function PlayerPage() {
   const [finished, setFinished] = useState(false)
   const sessionId = useRef<Promise<string | null> | null>(null)
   const reduced = usePrefersReducedMotion()
+  const [soundOn, setSoundOn] = useState(loadSoundPref)
+  const [needsTap, setNeedsTap] = useState(false)
+  const sound = useRef<SoundEngine | null>(null)
+  const prevElapsed = useRef(0)
 
   useEffect(() => {
     getActivities().then((all) => setActivity(all.find((a) => a.id === id) ?? null))
@@ -46,11 +51,56 @@ export default function PlayerPage() {
     return () => cancelAnimationFrame(raf)
   }, [activity, running, finished])
 
+  // Sonido ambiente de relajación durante toda la pausa (con fundidos de entrada y salida).
+  useEffect(() => {
+    if (!activity) return
+    const engine = new SoundEngine(!loadSoundPref())
+    sound.current = engine
+    engine.unlock().then((ok) => {
+      if (sound.current !== engine) return
+      if (ok) engine.startAmbient(activity.module)
+      else setNeedsTap(true) // el navegador pide un toque antes de reproducir sonido
+    })
+    return () => {
+      engine.close()
+      if (sound.current === engine) sound.current = null
+    }
+  }, [activity])
+
+  useEffect(() => {
+    sound.current?.setAmbientPaused(!running)
+  }, [running])
+
+  // Burbuja cuando se completa el anillo exterior de un paso.
+  useEffect(() => {
+    if (activity && ringCompleted(activity.steps, prevElapsed.current, elapsed)) sound.current?.pop()
+    prevElapsed.current = elapsed
+  }, [elapsed, activity])
+
+  /** Activa el audio tras un toque si el navegador lo había bloqueado. */
+  const ensureSound = useCallback(async () => {
+    const engine = sound.current
+    if (!engine || !activity || engine.isRunning) return
+    if (await engine.unlock()) {
+      engine.startAmbient(activity.module)
+      setNeedsTap(false)
+    }
+  }, [activity])
+
+  const toggleSound = useCallback(() => {
+    const on = needsTap ? true : !soundOn
+    setSoundOn(on)
+    saveSoundPref(on)
+    sound.current?.setMuted(!on)
+    void ensureSound()
+  }, [needsTap, soundOn, ensureSound])
+
   const pos = activity ? locate(activity.steps, elapsed) : null
 
   useEffect(() => {
     if (pos?.done && !finished) {
       setFinished(true)
+      sound.current?.stopAmbient(3)
       sessionId.current?.then((sid) => (sid ? backend.completeSession(sid) : undefined)).catch(() => undefined)
     }
   }, [pos?.done, finished, backend])
@@ -62,9 +112,10 @@ export default function PlayerPage() {
 
   const goTo = useCallback((index: number) => {
     if (!activity) return
+    void ensureSound()
     const i = Math.max(0, Math.min(activity.steps.length - 1, index))
     setElapsed(stepStartMs(activity.steps, i))
-  }, [activity])
+  }, [activity, ensureSound])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -72,13 +123,14 @@ export default function PlayerPage() {
       if (e.key === 'Escape') exit()
       else if (e.key === ' ' && !(e.target instanceof HTMLButtonElement)) {
         e.preventDefault()
+        void ensureSound()
         setRunning((r) => !r)
       } else if (e.key === 'ArrowRight' && pos) goTo(pos.index + 1)
       else if (e.key === 'ArrowLeft' && pos) goTo(pos.index - 1)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [exit, goTo, pos, finished])
+  }, [exit, goTo, pos, finished, ensureSound])
 
   if (activity === undefined) return <div className="fixed inset-0 bg-fondo"><Spinner /></div>
   if (activity === null || !pos) return <div className="p-6"><ErrorNote message="No encontramos esta pausa." /></div>
@@ -111,11 +163,21 @@ export default function PlayerPage() {
         </button>
         <div className="min-w-0 flex-1 text-center">
           <p className="truncate font-titulo text-lg font-semibold">{activity.title}</p>
-          <p className="text-xs text-[#3E4A4E]">{m.name} · Paso {pos.index + 1} de {activity.steps.length}</p>
+          <p className="text-xs text-[#3E4A4E]">{m.name} · Paso {pos.index + 1} de {activity.steps.length}
+            <span className="tabular-nums sm:hidden"> · {fmtClock(pos.totalRemainingMs)}</span></p>
         </div>
-        <span className="w-[92px] text-right text-sm tabular-nums text-[#3E4A4E]" aria-label="Tiempo restante">
-          {fmtClock(pos.totalRemainingMs)}
-        </span>
+        <div className="flex items-center justify-end gap-2 sm:w-[160px]">
+          <span className="hidden text-sm tabular-nums text-[#3E4A4E] sm:inline" aria-label="Tiempo restante">
+            {fmtClock(pos.totalRemainingMs)}
+          </span>
+          <button type="button" onClick={toggleSound} aria-pressed={soundOn && !needsTap}
+            aria-label={needsTap ? 'Activar el sonido' : soundOn ? 'Silenciar el sonido' : 'Activar el sonido'}
+            title={needsTap ? 'Toca para activar el sonido' : soundOn ? 'Silenciar' : 'Activar sonido'}
+            className={`btn min-w-[48px] px-3 ${needsTap ? 'bg-salvia-oscuro text-white' : 'bg-white/70 hover:bg-white'}`}>
+            <SoundIcon on={soundOn && !needsTap} />
+            {needsTap && <span className="text-sm">Activar sonido</span>}
+          </button>
+        </div>
       </header>
 
       <div className="flex flex-1 flex-col items-center justify-center gap-6 px-6 text-center">
@@ -138,7 +200,7 @@ export default function PlayerPage() {
         <div className="mt-5 flex items-center justify-center gap-4">
           <button type="button" className="btn min-w-[48px] bg-white/60 px-4 text-xl hover:bg-white disabled:opacity-40" onClick={() => goTo(pos.index - 1)}
             disabled={pos.index === 0} aria-label="Paso anterior">‹</button>
-          <button type="button" className="btn-primary min-w-[160px] text-lg" onClick={() => setRunning((r) => !r)}
+          <button type="button" className="btn-primary min-w-[160px] text-lg" onClick={() => { void ensureSound(); setRunning((r) => !r) }}
             aria-label={running ? 'Pausar' : 'Reanudar'}>
             {running ? 'Pausar' : 'Reanudar'}
           </button>
@@ -216,6 +278,16 @@ function Visual({ code, stepElapsed, progress, color, running, reduced }: {
       {inner}
       {label}
     </div>
+  )
+}
+
+function SoundIcon({ on }: { on: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8"
+      strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 9.5v5h3.5L12 18.5v-13L7.5 9.5z" />
+      {on ? <path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" /> : <path d="m16 9.5 5 5m0-5-5 5" />}
+    </svg>
   )
 }
 

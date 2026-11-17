@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { breathAt, fmtClock, locate, parseAnimation, stepStartMs } from './player'
+import { breathAt, fmtClock, locate, parseAnimation, ringCompleted, stepStartMs } from './player'
 
 const steps = [
   { text: 'a', seconds: 10, animation: 'still' },
@@ -13,6 +13,16 @@ describe('locate', () => {
   it('tiempo restante del paso y total', () =>
     expect(locate(steps, 35000)).toMatchObject({ index: 2, stepRemainingMs: 25000, totalRemainingMs: 25000 }))
   it('terminado al final', () => expect(locate(steps, 60000).done).toBe(true))
+  it('anillo completado al pasar de paso con el tiempo', () => {
+    expect(ringCompleted(steps, 9990, 10010)).toBe(true)
+    expect(ringCompleted(steps, 5000, 5016)).toBe(false)
+  })
+  it('anillo completado también en el último paso', () => expect(ringCompleted(steps, 59990, 60005)).toBe(true))
+  it('no cuenta los saltos manuales ni ir hacia atrás', () => {
+    expect(ringCompleted(steps, 2000, 10000)).toBe(false)
+    expect(ringCompleted(steps, 12000, 0)).toBe(false)
+  })
+  it('una vez terminada no vuelve a sonar', () => expect(ringCompleted(steps, 60000, 60016)).toBe(false))
   it('inicio de cada paso', () => expect([0, 1, 2].map((i) => stepStartMs(steps, i))).toEqual([0, 10000, 30000]))
 })
 
