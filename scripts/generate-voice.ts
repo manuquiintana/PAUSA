@@ -46,6 +46,7 @@ async function synth(apiKey: string, text: string): Promise<Buffer> {
     if (res.ok) return Buffer.from(await res.arrayBuffer())
     const body = await res.text()
     if (res.status === 401 || res.status === 403) throw new Error(`ElevenLabs rechazó la clave o la voz (${res.status}): ${body}`)
+    if (res.status === 402) throw new Error(`Tu plan de ElevenLabs no permite usar esta voz por API (hace falta un plan de pago para voces de la biblioteca). ${body}`)
     if (res.status === 404) throw new Error(`No se encuentra la voz ${VOICE_ID}. ¿Está añadida a "My Voices"? ${body}`)
     if (attempt === 4) throw new Error(`Error ${res.status} de ElevenLabs: ${body}`)
     await new Promise((r) => setTimeout(r, 1500 * attempt)) // reintento (límite de peticiones, etc.)
