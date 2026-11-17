@@ -4,6 +4,7 @@
  */
 import { createDemoDb, asUser } from '../src/lib/demo/setup'
 import { loadSqlFromDisk } from './load-sql'
+import { AVATAR_POSES } from '../src/lib/avatar'
 
 const U = {
   admin: '10000000-0000-4000-8000-000000000001', // Lucía (empresa A)
@@ -148,6 +149,17 @@ check('Nadie puede escribir preferencias de otro',
      on conflict (user_id) do update set needs = excluded.needs`, [U.employee2]))
 const opsLast = (await q(U.manager, `select * from team_wellbeing($1, 'week', 1)`, [T.ops]))[0]
 check('"Pausas completadas" llega solo como total del equipo', Number(opsLast.pauses_completed) > 0)
+
+console.log('\nAvatar guía')
+const poses = (await q(U.employee, 'select distinct pose from activity_steps where pose is not null')).map((r) => String(r.pose))
+check('Todos los movimientos asignados existen en el avatar', poses.length > 0 && poses.every((p) => AVATAR_POSES.includes(p)))
+check('Los pasos de actividades de pie no muestran el avatar sentado',
+  (await count(U.employee, `select count(*) n from activity_steps s join activities a on a.id = s.activity_id
+     where a.requires_standing and s.pose = 'respirar'`)) === 0)
+check('La guía elegida es privada (otro usuario no la ve)',
+  (await count(U.manager, 'select count(*) n from preferences where user_id = $1', [U.employee])) === 0)
+check('La guía solo admite mujer u hombre',
+  await fails(U.employee, `update preferences set guide = 'otro' where user_id = $1`, [U.employee]))
 
 console.log(`\n${passed} correctas, ${failed} fallidas\n`)
 await pg.close()

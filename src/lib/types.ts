@@ -35,6 +35,8 @@ export interface Wellbeing {
   pausesCompleted: number | null
 }
 
+import type { Guide } from './avatar'
+
 export type Need = 'cuello_espalda' | 'desconectar' | 'concentracion' | 'energia' | 'calma'
 export type ModuleId = 'stretch' | 'breathe' | 'mindfulness' | 'positive' | 'reset'
 
@@ -45,6 +47,8 @@ export interface Preferences {
   canStand: boolean
   workStart: string // "HH:MM"
   workEnd: string
+  /** Avatar guía en el reproductor */
+  guide: Guide
   onboardedAt: string | null
 }
 
@@ -53,6 +57,8 @@ export interface ActivityStep {
   seconds: number
   /** still · move · pulse · eyes · breath:4-6 · breath:4-4-4-4 */
   animation: string
+  /** Movimiento del avatar guía (null = animación abstracta) */
+  pose?: string | null
 }
 
 export interface Activity {

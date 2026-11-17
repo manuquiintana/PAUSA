@@ -10,6 +10,7 @@ export function toPreferences(r: Row): Preferences {
     canStand: Boolean(r.can_stand),
     workStart: String(r.work_start).slice(0, 5),
     workEnd: String(r.work_end).slice(0, 5),
+    guide: r.guide === 'hombre' ? 'hombre' : 'mujer',
     onboardedAt: iso(r.onboarded_at),
   }
 }
@@ -22,6 +23,7 @@ export function fromPreferences(userId: string, p: Omit<Preferences, 'onboardedA
     can_stand: p.canStand,
     work_start: p.workStart,
     work_end: p.workEnd,
+    guide: p.guide,
   }
 }
 
@@ -37,7 +39,7 @@ export function toActivity(r: Row, steps: Row[]): Activity {
     reviewStatus: String(r.review_status),
     steps: [...steps]
       .sort((a, b) => Number(a.position) - Number(b.position))
-      .map((s) => ({ text: String(s.text), seconds: Number(s.seconds), animation: String(s.animation) })),
+      .map((s) => ({ text: String(s.text), seconds: Number(s.seconds), animation: String(s.animation), pose: (s.pose as string) ?? null })),
   }
 }
 

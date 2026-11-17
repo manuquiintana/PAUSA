@@ -5,12 +5,15 @@ import { useApp } from '../lib/app-context'
 import { MODULE_BY_ID } from '../lib/modules'
 import { breathAt, fmtClock, locate, parseAnimation, ringCompleted, stepStartMs } from '../lib/player'
 import { loadSoundPref, saveSoundPref, SoundEngine } from '../lib/sound'
+import { Avatar } from '../components/Avatar'
+import { type Guide, isPose, poseAt } from '../lib/avatar'
 import type { Activity } from '../lib/types'
 
 /** Reproductor a pantalla completa. Pausar y salir siempre visibles. Espacio = pausar, Esc = salir. */
 export default function PlayerPage() {
   const { id } = useParams()
-  const { backend, getActivities } = useApp()
+  const { backend, getActivities, prefs, reloadPrefs } = useApp()
+  const [guide, setGuide] = useState<Guide>(prefs?.guide ?? 'mujer')
   const navigate = useNavigate()
   const location = useLocation()
   const [activity, setActivity] = useState<Activity | null | undefined>(undefined)
@@ -95,6 +98,17 @@ export default function PlayerPage() {
     void ensureSound()
   }, [needsTap, soundOn, ensureSound])
 
+  /** Cambia la guía (mujer / hombre) y la guarda en las preferencias. */
+  const toggleGuide = useCallback(() => {
+    const next: Guide = guide === 'mujer' ? 'hombre' : 'mujer'
+    setGuide(next)
+    if (prefs) {
+      const { onboardedAt: _omit, ...draft } = prefs
+      void _omit
+      backend.savePreferences({ ...draft, guide: next }).then(reloadPrefs).catch(() => undefined)
+    }
+  }, [guide, prefs, backend, reloadPrefs])
+
   const pos = activity ? locate(activity.steps, elapsed) : null
 
   useEffect(() => {
@@ -170,6 +184,16 @@ export default function PlayerPage() {
           <span className="hidden text-sm tabular-nums text-[#3E4A4E] sm:inline" aria-label="Tiempo restante">
             {fmtClock(pos.totalRemainingMs)}
           </span>
+          {activity.steps.some((st) => isPose(st.pose)) && (
+            <button type="button" onClick={toggleGuide}
+              aria-label={`Guía: ${guide === 'mujer' ? 'mujer' : 'hombre'}. Cambiar a ${guide === 'mujer' ? 'hombre' : 'mujer'}`}
+              title={guide === 'mujer' ? 'Guía: mujer · cambiar a hombre' : 'Guía: hombre · cambiar a mujer'}
+              className="btn min-w-[48px] overflow-hidden bg-white/70 px-1 hover:bg-white">
+              <span className="block h-9 w-9 overflow-hidden rounded-full bg-salvia-claro">
+                <Avatar guide={guide} crop="cara" className="h-full w-full" />
+              </span>
+            </button>
+          )}
           <button type="button" onClick={toggleSound} aria-pressed={soundOn && !needsTap}
             aria-label={needsTap ? 'Activar el sonido' : soundOn ? 'Silenciar el sonido' : 'Activar el sonido'}
             title={needsTap ? 'Toca para activar el sonido' : soundOn ? 'Silenciar' : 'Activar sonido'}
@@ -182,7 +206,7 @@ export default function PlayerPage() {
 
       <div className="flex flex-1 flex-col items-center justify-center gap-6 px-6 text-center">
         <Visual code={step.animation} stepElapsed={pos.stepElapsedMs} progress={pos.stepElapsedMs / stepLen}
-          color={m.color} running={running} reduced={reduced} />
+          color={m.color} running={running} reduced={reduced} pose={step.pose} guide={guide} />
         <p className="max-w-xl font-titulo text-2xl font-medium leading-snug md:text-3xl" aria-live="polite">{step.text}</p>
       </div>
 
@@ -213,10 +237,12 @@ export default function PlayerPage() {
   )
 }
 
-function Visual({ code, stepElapsed, progress, color, running, reduced }: {
+function Visual({ code, stepElapsed, progress, color, running, reduced, pose, guide }: {
   code: string; stepElapsed: number; progress: number; color: string; running: boolean; reduced: boolean
+  pose?: string | null; guide: Guide
 }) {
   const anim = parseAnimation(code)
+  if (isPose(pose)) return <AvatarVisual anim={anim} pose={pose} guide={guide} stepElapsed={stepElapsed} progress={progress} color={color} reduced={reduced} />
   const size = 'min(62vw, 300px)'
   const R = 47
   const C = 2 * Math.PI * R
@@ -277,6 +303,42 @@ function Visual({ code, stepElapsed, progress, color, running, reduced }: {
       </svg>
       {inner}
       {label}
+    </div>
+  )
+}
+
+/** Círculo con el avatar guía haciendo el movimiento del paso. */
+function AvatarVisual({ anim, pose, guide, stepElapsed, progress, color, reduced }: {
+  anim: ReturnType<typeof parseAnimation>; pose: string; guide: Guide; stepElapsed: number; progress: number
+  color: string; reduced: boolean
+}) {
+  const size = 'min(68vw, 320px)'
+  const R = 47
+  const C = 2 * Math.PI * R
+  const b = anim.kind === 'breath' ? breathAt(anim.phases, stepElapsed) : null
+  const breath = b ? (b.scale - 0.55) / 0.45 : undefined
+  // Con "reducir movimiento", mostramos la postura objetivo quieta.
+  const joints = reduced ? poseAt(pose, 4000) : poseAt(pose, stepElapsed, breath)
+  return (
+    <div className="relative" style={{ width: size, height: size }}>
+      <svg viewBox="0 0 100 100" className="absolute inset-0 -rotate-90" aria-hidden="true">
+        <circle cx="50" cy="50" r={R} fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2.5" />
+        <circle cx="50" cy="50" r={R} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round"
+          strokeDasharray={C} strokeDashoffset={C * (1 - Math.min(1, progress))} />
+      </svg>
+      <span className="absolute inset-[5%] rounded-full" style={{ background: color, opacity: 0.22 }} />
+      {b && (
+        <span className="absolute inset-[5%] rounded-full" style={{
+          background: color, opacity: 0.35, transform: `scale(${reduced ? 0.85 : 0.7 + b.scale * 0.3})`,
+        }} />
+      )}
+      <Avatar guide={guide} joints={joints} className="absolute inset-[5%] h-[90%] w-[90%]" />
+      {b && (
+        <span className="absolute -bottom-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-white px-4 py-1.5 text-sm font-semibold text-tinta shadow-sm"
+          aria-live="polite">
+          {b.label} · <span className="tabular-nums">{b.secondsLeft}</span>
+        </span>
+      )}
     </div>
   )
 }

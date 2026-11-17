@@ -150,12 +150,12 @@ export function createDemoBackend(): DataBackend {
     async savePreferences(p) {
       const v = fromPreferences(userId!, p)
       await q(
-        `insert into preferences (user_id, needs, pauses_per_day, can_stand, work_start, work_end, onboarded_at, updated_at)
-         values (auth.uid(), $1, $2, $3, $4::time, $5::time, now(), now())
+        `insert into preferences (user_id, needs, pauses_per_day, can_stand, work_start, work_end, guide, onboarded_at, updated_at)
+         values (auth.uid(), $1, $2, $3, $4::time, $5::time, $6, now(), now())
          on conflict (user_id) do update set needs = excluded.needs, pauses_per_day = excluded.pauses_per_day,
-           can_stand = excluded.can_stand, work_start = excluded.work_start, work_end = excluded.work_end,
+           can_stand = excluded.can_stand, work_start = excluded.work_start, work_end = excluded.work_end, guide = excluded.guide,
            onboarded_at = coalesce(preferences.onboarded_at, now()), updated_at = now()`,
-        [v.needs, v.pauses_per_day, v.can_stand, v.work_start, v.work_end],
+        [v.needs, v.pauses_per_day, v.can_stand, v.work_start, v.work_end, v.guide],
       )
     },
 

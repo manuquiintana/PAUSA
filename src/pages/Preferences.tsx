@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { NeedsField, PausesField, ScheduleField, StandField } from '../components/PreferenceFields'
+import { GuideField, NeedsField, PausesField, ScheduleField, StandField } from '../components/PreferenceFields'
 import { DEFAULT_PREFS, type PrefsDraft } from '../lib/prefs'
 import { Card, ErrorNote, PageTitle } from '../components/ui'
 import { useApp } from '../lib/app-context'
@@ -49,6 +49,11 @@ export default function PreferencesPage() {
       <Card>
         <h2 className="mb-4 text-xl font-semibold">Horario aproximado</h2>
         <ScheduleField start={draft.workStart} end={draft.workEnd} onChange={(workStart, workEnd) => set({ workStart, workEnd })} />
+      </Card>
+      <Card>
+        <h2 className="text-xl font-semibold">Guía de las pausas</h2>
+        <p className="mb-4 mt-1 text-sm text-neutro-oscuro">El avatar que te enseña cómo hacer cada movimiento. También puedes cambiarlo durante la pausa.</p>
+        <GuideField value={draft.guide} onChange={(guide) => set({ guide })} />
       </Card>
       {error && <ErrorNote message={error} />}
       <div className="flex items-center gap-3">

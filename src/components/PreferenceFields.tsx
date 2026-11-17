@@ -1,5 +1,7 @@
 import { NEED_LABEL } from '../lib/modules'
+import type { Guide } from '../lib/avatar'
 import type { Need } from '../lib/types'
+import { Avatar } from './Avatar'
 
 const NEEDS: Need[] = ['cuello_espalda', 'desconectar', 'concentracion', 'energia', 'calma']
 
@@ -67,6 +69,22 @@ export function ScheduleField({ start, end, onChange }: { start: string; end: st
         <span className="mb-1 block text-sm font-medium">Termino hacia las</span>
         <input className="input" type="time" value={end} onChange={(e) => onChange(start, e.target.value)} required />
       </label>
+    </div>
+  )
+}
+
+export function GuideField({ value, onChange }: { value: Guide; onChange: (v: Guide) => void }) {
+  return (
+    <div role="radiogroup" aria-label="Guía de las pausas" className="grid grid-cols-2 gap-3">
+      {(['mujer', 'hombre'] as const).map((g) => (
+        <button key={g} type="button" role="radio" aria-checked={value === g} onClick={() => onChange(g)}
+          className={`${choiceCls(value === g)} flex flex-col items-center gap-2 text-center`}>
+          <span className="block h-24 w-24 overflow-hidden rounded-full bg-salvia-claro">
+            <Avatar guide={g} className="h-full w-full" />
+          </span>
+          {g === 'mujer' ? 'Mujer' : 'Hombre'}
+        </button>
+      ))}
     </div>
   )
 }
